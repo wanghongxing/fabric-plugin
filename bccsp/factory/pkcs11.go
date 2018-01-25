@@ -20,6 +20,8 @@ package factory
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	"github.com/hyperledger/fabric/bccsp"
 	"github.com/hyperledger/fabric/bccsp/pkcs11"
 )
@@ -27,6 +29,7 @@ import (
 type FactoryOpts struct {
 	ProviderName string             `mapstructure:"default" json:"default" yaml:"Default"`
 	SwOpts       *SwOpts            `mapstructure:"SW,omitempty" json:"SW,omitempty" yaml:"SwOpts"`
+	PluginOpts   *PluginOpts        `mapstructure:"PLUGIN,omitempty" json:"PLUGIN,omitempty" yaml:"PluginOpts"`
 	Pkcs11Opts   *pkcs11.PKCS11Opts `mapstructure:"PKCS11,omitempty" json:"PKCS11,omitempty" yaml:"PKCS11"`
 }
 
@@ -67,6 +70,14 @@ func setFactories(config *FactoryOpts) error {
 			factoriesInitError = fmt.Errorf("Failed initializing SW.BCCSP [%s]", err)
 		}
 	}
+	// BCCSP Plugin
+	if config.PluginOpts != nil {
+		f := &PluginFactory{}
+		err := initBCCSP(f, config)
+		if err != nil {
+			factoriesInitError = errors.Wrapf(err, "Failed initializing PKCS11.BCCSP %s", factoriesInitError)
+		}
+	}
 
 	// PKCS11-Based BCCSP
 	if config.Pkcs11Opts != nil {
@@ -92,6 +103,8 @@ func GetBCCSPFromOpts(config *FactoryOpts) (bccsp.BCCSP, error) {
 	switch config.ProviderName {
 	case "SW":
 		f = &SWFactory{}
+	case "PLUGIN":
+		f = &PluginFactory{}
 	case "PKCS11":
 		f = &PKCS11Factory{}
 	default:
